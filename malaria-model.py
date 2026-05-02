@@ -33,16 +33,16 @@ Outputs: prints results to stdout and saves figures to PNG files.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, asdict, fields
+from dataclasses import asdict, dataclass, fields
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.integrate import solve_ivp
-
 
 # -----------------------------------------------------------------------------
 # 1.  Parameters
 # -----------------------------------------------------------------------------
+
 
 @dataclass
 class Params:
@@ -50,23 +50,24 @@ class Params:
 
     All rates are per day. See Table 2 for parameter meanings.
     """
-    Lambda_h: float   # immigration rate of humans (humans/day)
-    psi_h: float      # per-capita human birth rate (1/day)
-    psi_v: float      # per-capita mosquito birth rate (1/day)
-    sigma_v: float    # mosquito desired biting rate (1/day)
-    sigma_h: float    # max mosquito bites a human can have (1/day)
-    beta_hv: float    # P(transmission mosquito -> human | bite)
-    beta_vh: float    # P(transmission infectious human -> mosquito | bite)
+
+    Lambda_h: float  # immigration rate of humans (humans/day)
+    psi_h: float  # per-capita human birth rate (1/day)
+    psi_v: float  # per-capita mosquito birth rate (1/day)
+    sigma_v: float  # mosquito desired biting rate (1/day)
+    sigma_h: float  # max mosquito bites a human can have (1/day)
+    beta_hv: float  # P(transmission mosquito -> human | bite)
+    beta_vh: float  # P(transmission infectious human -> mosquito | bite)
     beta_vh_tilde: float  # P(transmission recovered human -> mosquito | bite)
-    nu_h: float       # 1/(latent period in humans) (1/day)
-    nu_v: float       # 1/(latent period in mosquitoes) (1/day)
-    gamma_h: float    # human recovery rate (1/day)
-    delta_h: float    # disease-induced human death rate (1/day)
-    rho_h: float      # rate of loss of immunity (1/day)
-    mu1_h: float      # density-independent human death/emigration (1/day)
-    mu2_h: float      # density-dependent human death/emigration (1/(human*day))
-    mu1_v: float      # density-independent mosquito death (1/day)
-    mu2_v: float      # density-dependent mosquito death (1/(mosq*day))
+    nu_h: float  # 1/(latent period in humans) (1/day)
+    nu_v: float  # 1/(latent period in mosquitoes) (1/day)
+    gamma_h: float  # human recovery rate (1/day)
+    delta_h: float  # disease-induced human death rate (1/day)
+    rho_h: float  # rate of loss of immunity (1/day)
+    mu1_h: float  # density-independent human death/emigration (1/day)
+    mu2_h: float  # density-dependent human death/emigration (1/(human*day))
+    mu1_v: float  # density-independent mosquito death (1/day)
+    mu2_v: float  # density-dependent mosquito death (1/(mosq*day))
 
 
 # Baseline values from Table 3.
@@ -115,6 +116,7 @@ HIGH = Params(
 # 2.  Disease-free equilibrium populations and R0
 # -----------------------------------------------------------------------------
 
+
 def disease_free_populations(p: Params) -> tuple[float, float]:
     """Return (N_h*, N_v*) at the disease-free equilibrium, Eq. (4)."""
     a = p.psi_h - p.mu1_h
@@ -135,16 +137,21 @@ def R0(p: Params) -> float:
 
     K_hv = (
         (p.nu_v / (p.nu_v + p.mu1_v + p.mu2_v * Nv))
-        * contact * Nh
+        * contact
+        * Nh
         * p.beta_hv
         * (1.0 / (p.mu1_v + p.mu2_v * Nv))
     )
 
     K_vh = (
         (p.nu_h / (p.nu_h + p.mu1_h + p.mu2_h * Nh))
-        * contact * Nv
+        * contact
+        * Nv
         * (1.0 / (p.gamma_h + p.delta_h + p.mu1_h + p.mu2_h * Nh))
-        * (p.beta_vh + p.beta_vh_tilde * (p.gamma_h / (p.rho_h + p.mu1_h + p.mu2_h * Nh)))
+        * (
+            p.beta_vh
+            + p.beta_vh_tilde * (p.gamma_h / (p.rho_h + p.mu1_h + p.mu2_h * Nh))
+        )
     )
 
     return math.sqrt(K_vh * K_hv)
@@ -153,6 +160,7 @@ def R0(p: Params) -> float:
 # -----------------------------------------------------------------------------
 # 3.  The dynamical system
 # -----------------------------------------------------------------------------
+
 
 def rhs_scaled(t, y, p: Params):
     """Right-hand side of the scaled malaria model, Eqs. (2a)-(2g).
@@ -168,19 +176,29 @@ def rhs_scaled(t, y, p: Params):
     # Lambda_h / N_h appears throughout; guard against division by zero.
     lam_over_N = p.Lambda_h / N_h
 
-    de_h = (contact * N_v * p.beta_hv * i_v) * (1.0 - e_h - i_h - r_h) \
-           - (p.nu_h + p.psi_h + lam_over_N) * e_h \
-           + p.delta_h * i_h * e_h
-    di_h = p.nu_h * e_h \
-           - (p.gamma_h + p.delta_h + p.psi_h + lam_over_N) * i_h \
-           + p.delta_h * i_h * i_h
-    dr_h = p.gamma_h * i_h \
-           - (p.rho_h + p.psi_h + lam_over_N) * r_h \
-           + p.delta_h * i_h * r_h
-    dN_h = p.Lambda_h + p.psi_h * N_h - (p.mu1_h + p.mu2_h * N_h) * N_h - p.delta_h * i_h * N_h
+    de_h = (
+        (contact * N_v * p.beta_hv * i_v) * (1.0 - e_h - i_h - r_h)
+        - (p.nu_h + p.psi_h + lam_over_N) * e_h
+        + p.delta_h * i_h * e_h
+    )
+    di_h = (
+        p.nu_h * e_h
+        - (p.gamma_h + p.delta_h + p.psi_h + lam_over_N) * i_h
+        + p.delta_h * i_h * i_h
+    )
+    dr_h = (
+        p.gamma_h * i_h - (p.rho_h + p.psi_h + lam_over_N) * r_h + p.delta_h * i_h * r_h
+    )
+    dN_h = (
+        p.Lambda_h
+        + p.psi_h * N_h
+        - (p.mu1_h + p.mu2_h * N_h) * N_h
+        - p.delta_h * i_h * N_h
+    )
 
-    de_v = (contact * N_h * (p.beta_vh * i_h + p.beta_vh_tilde * r_h)) * (1.0 - e_v - i_v) \
-           - (p.nu_v + p.psi_v) * e_v
+    de_v = (contact * N_h * (p.beta_vh * i_h + p.beta_vh_tilde * r_h)) * (
+        1.0 - e_v - i_v
+    ) - (p.nu_v + p.psi_v) * e_v
     di_v = p.nu_v * e_v - p.psi_v * i_v
     dN_v = p.psi_v * N_v - (p.mu1_v + p.mu2_v * N_v) * N_v
 
@@ -196,8 +214,13 @@ def initial_condition_scaled(Sh, Eh, Ih, Rh, Sv, Ev, Iv):
 
 def integrate(p: Params, y0, t_end_days: float, n_points: int = 4000):
     sol = solve_ivp(
-        rhs_scaled, (0.0, t_end_days), y0, args=(p,),
-        method="LSODA", rtol=1e-9, atol=1e-12,
+        rhs_scaled,
+        (0.0, t_end_days),
+        y0,
+        args=(p,),
+        method="LSODA",
+        rtol=1e-9,
+        atol=1e-12,
         t_eval=np.linspace(0.0, t_end_days, n_points),
         max_step=5.0,
     )
@@ -218,13 +241,29 @@ def to_original_counts(sol):
     Sv = s_v * N_v
     Ev = e_v * N_v
     Iv = i_v * N_v
-    return dict(t=sol.t, Sh=Sh, Eh=Eh, Ih=Ih, Rh=Rh, Sv=Sv, Ev=Ev, Iv=Iv,
-                eh=e_h, ih=i_h, rh=r_h, Nh=N_h, ev=e_v, iv=i_v, Nv=N_v)
+    return dict(
+        t=sol.t,
+        Sh=Sh,
+        Eh=Eh,
+        Ih=Ih,
+        Rh=Rh,
+        Sv=Sv,
+        Ev=Ev,
+        Iv=Iv,
+        eh=e_h,
+        ih=i_h,
+        rh=r_h,
+        Nh=N_h,
+        ev=e_v,
+        iv=i_v,
+        Nv=N_v,
+    )
 
 
 # -----------------------------------------------------------------------------
 # 4.  Sensitivity indices of R0
 # -----------------------------------------------------------------------------
+
 
 def sensitivity_indices_R0(p: Params, rel_step: float = 1e-6) -> dict[str, float]:
     """Normalized forward sensitivity index Y^{R0}_q = (dR0/dq)*(q/R0)
@@ -249,22 +288,22 @@ def sensitivity_indices_R0(p: Params, rel_step: float = 1e-6) -> dict[str, float
 # Pretty-print symbol map for sensitivity table.
 SYMBOL = {
     "Lambda_h": "Λ_h",
-    "psi_h":    "ψ_h",
-    "psi_v":    "ψ_v",
-    "sigma_v":  "σ_v",
-    "sigma_h":  "σ_h",
-    "beta_hv":  "β_hv",
-    "beta_vh":  "β_vh",
+    "psi_h": "ψ_h",
+    "psi_v": "ψ_v",
+    "sigma_v": "σ_v",
+    "sigma_h": "σ_h",
+    "beta_hv": "β_hv",
+    "beta_vh": "β_vh",
     "beta_vh_tilde": "β̃_vh",
-    "nu_h":     "ν_h",
-    "nu_v":     "ν_v",
-    "gamma_h":  "γ_h",
-    "delta_h":  "δ_h",
-    "rho_h":    "ρ_h",
-    "mu1_h":    "μ_1h",
-    "mu2_h":    "μ_2h",
-    "mu1_v":    "μ_1v",
-    "mu2_v":    "μ_2v",
+    "nu_h": "ν_h",
+    "nu_v": "ν_v",
+    "gamma_h": "γ_h",
+    "delta_h": "δ_h",
+    "rho_h": "ρ_h",
+    "mu1_h": "μ_1h",
+    "mu2_h": "μ_2h",
+    "mu1_v": "μ_1v",
+    "mu2_v": "μ_2v",
 }
 
 
@@ -272,13 +311,20 @@ SYMBOL = {
 # 5.  Reporting helpers
 # -----------------------------------------------------------------------------
 
+
 def report_basic(label: str, p: Params) -> None:
     Nh, Nv = disease_free_populations(p)
     r0 = R0(p)
     print(f"--- {label} transmission ---")
-    print(f"  Disease-free N*_h = {Nh:8.2f}    (paper: {523 if label=='High' else 583})")
-    print(f"  Disease-free N*_v = {Nv:8.2f}    (paper: {4850 if label=='High' else 2425})")
-    print(f"  R0                = {r0:8.4f}    (paper: {4.4 if label=='High' else 1.1})")
+    print(
+        f"  Disease-free N*_h = {Nh:8.2f}    (paper: {523 if label == 'High' else 583})"
+    )
+    print(
+        f"  Disease-free N*_v = {Nv:8.2f}    (paper: {4850 if label == 'High' else 2425})"
+    )
+    print(
+        f"  R0                = {r0:8.4f}    (paper: {4.4 if label == 'High' else 1.1})"
+    )
     print()
 
 
@@ -286,10 +332,14 @@ def report_endemic_equilibrium(label: str, p: Params, ic, t_end=200_000) -> None
     sol = integrate(p, ic, t_end_days=t_end, n_points=2000)
     out = to_original_counts(sol)
     print(f"--- Endemic equilibrium reached by long-time integration ({label}) ---")
-    print(f"  e_h = {out['eh'][-1]:.4f}, i_h = {out['ih'][-1]:.4f}, "
-          f"r_h = {out['rh'][-1]:.4f}, N_h = {out['Nh'][-1]:.1f}")
-    print(f"  e_v = {out['ev'][-1]:.4f}, i_v = {out['iv'][-1]:.4f}, "
-          f"N_v = {out['Nv'][-1]:.1f}")
+    print(
+        f"  e_h = {out['eh'][-1]:.4f}, i_h = {out['ih'][-1]:.4f}, "
+        f"r_h = {out['rh'][-1]:.4f}, N_h = {out['Nh'][-1]:.1f}"
+    )
+    print(
+        f"  e_v = {out['ev'][-1]:.4f}, i_v = {out['iv'][-1]:.4f}, "
+        f"N_v = {out['Nv'][-1]:.1f}"
+    )
     if label == "High":
         print("  paper Eq. (8): (0.0059, 0.16, 0.77, 490, 0.15, 0.11, 4850)")
     else:
@@ -300,7 +350,9 @@ def report_endemic_equilibrium(label: str, p: Params, ic, t_end=200_000) -> None
 def report_sensitivities(label: str, p: Params) -> None:
     idx = sensitivity_indices_R0(p)
     ranked = sorted(idx.items(), key=lambda kv: abs(kv[1]), reverse=True)
-    print(f"--- Sensitivity indices of R0 ({label} transmission), ranked by |index| ---")
+    print(
+        f"--- Sensitivity indices of R0 ({label} transmission), ranked by |index| ---"
+    )
     print(f"  {'rank':>4}  {'parameter':<6}  {'Y^R0_q':>10}")
     for rank, (name, val) in enumerate(ranked, start=1):
         print(f"  {rank:>4}  {SYMBOL[name]:<6}  {val:+10.4f}")
@@ -308,17 +360,24 @@ def report_sensitivities(label: str, p: Params) -> None:
     # Paper: Y^R0_{β_hv} = 1/2 exactly (paper, p. 1281).
     # Note: Y^R0_{β_vh} + Y^R0_{β̃_vh} = 1/2 because β_vh and β̃_vh enter R0 only
     # through the combination β_vh + β̃_vh*(γ_h/(ρ_h+...)) under a square root.
-    print(f"  identity check  Y^R0_{{β_hv}}                 = {idx['beta_hv']:+.4f}  (paper: +0.5)")
-    s_beta = idx['beta_vh'] + idx['beta_vh_tilde']
-    print(f"  identity check  Y^R0_{{β_vh}} + Y^R0_{{β̃_vh}}  = {s_beta:+.4f}  (should be +0.5)")
-    s = idx['sigma_v'] + idx['sigma_h']
-    print(f"  identity check  Y^R0_{{σ_v}} + Y^R0_{{σ_h}}      = {s:+.4f}  (= Y^R0_ζ, paper Eq. 12: +1.0)")
+    print(
+        f"  identity check  Y^R0_{{β_hv}}                 = {idx['beta_hv']:+.4f}  (paper: +0.5)"
+    )
+    s_beta = idx["beta_vh"] + idx["beta_vh_tilde"]
+    print(
+        f"  identity check  Y^R0_{{β_vh}} + Y^R0_{{β̃_vh}}  = {s_beta:+.4f}  (should be +0.5)"
+    )
+    s = idx["sigma_v"] + idx["sigma_h"]
+    print(
+        f"  identity check  Y^R0_{{σ_v}} + Y^R0_{{σ_h}}      = {s:+.4f}  (= Y^R0_ζ, paper Eq. 12: +1.0)"
+    )
     print()
 
 
 # -----------------------------------------------------------------------------
 # 6.  Plots
 # -----------------------------------------------------------------------------
+
 
 def plot_trajectory(label, sol_dict, fname, t_max_days):
     """Reproduce the layout of Figs. 2 and 3: 4 humans + 3 mosquito panels."""
@@ -329,12 +388,12 @@ def plot_trajectory(label, sol_dict, fname, t_max_days):
 
     panels = [
         ("S_h (susceptible humans)", sol_dict["Sh"]),
-        ("E_h (exposed humans)",     sol_dict["Eh"]),
-        ("I_h (infectious humans)",  sol_dict["Ih"]),
-        ("R_h (recovered humans)",   sol_dict["Rh"]),
-        ("S_v (susceptible mosq.)",  sol_dict["Sv"]),
+        ("E_h (exposed humans)", sol_dict["Eh"]),
+        ("I_h (infectious humans)", sol_dict["Ih"]),
+        ("R_h (recovered humans)", sol_dict["Rh"]),
+        ("S_v (susceptible mosq.)", sol_dict["Sv"]),
         ("E_v (exposed mosquitoes)", sol_dict["Ev"]),
-        ("I_v (infectious mosq.)",   sol_dict["Iv"]),
+        ("I_v (infectious mosq.)", sol_dict["Iv"]),
     ]
     for ax, (title, y) in zip(axes, panels):
         ax.plot(t[mask], y[mask], lw=1.5)
@@ -343,9 +402,11 @@ def plot_trajectory(label, sol_dict, fname, t_max_days):
     axes[-1].axis("off")
     for ax in axes[5:7]:
         ax.set_xlabel("time (days)")
-    fig.suptitle(f"Malaria model trajectory — {label} transmission "
-                 f"(reproduction of Fig. {2 if label=='Low' else 3})",
-                 fontsize=12)
+    fig.suptitle(
+        f"Malaria model trajectory — {label} transmission "
+        f"(reproduction of Fig. {2 if label == 'Low' else 3})",
+        fontsize=12,
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(fname, dpi=130)
     plt.close(fig)
@@ -357,9 +418,11 @@ def plot_sensitivity_bars(p_low, p_high, fname):
     idx_high = sensitivity_indices_R0(p_high)
 
     # Order by mean |index| across the two regimes for readability.
-    keys = sorted(idx_low.keys(),
-                  key=lambda k: 0.5 * (abs(idx_low[k]) + abs(idx_high[k])),
-                  reverse=True)
+    keys = sorted(
+        idx_low.keys(),
+        key=lambda k: 0.5 * (abs(idx_low[k]) + abs(idx_high[k])),
+        reverse=True,
+    )
     labels = [SYMBOL[k] for k in keys]
     low_vals = [idx_low[k] for k in keys]
     high_vals = [idx_high[k] for k in keys]
@@ -386,6 +449,7 @@ def plot_sensitivity_bars(p_low, p_high, fname):
 # 7.  Main
 # -----------------------------------------------------------------------------
 
+
 def main():
     # 7.1 Disease-free populations and R0.
     print("=" * 72)
@@ -398,8 +462,10 @@ def main():
     print("=" * 72)
     print("STEP 2 — Endemic equilibria via long-time integration")
     print("=" * 72)
-    ic_low  = initial_condition_scaled(Sh=600, Eh=20, Ih=3,  Rh=0, Sv=2400, Ev=30,  Iv=5)
-    ic_high = initial_condition_scaled(Sh=500, Eh=10, Ih=30, Rh=0, Sv=4000, Ev=100, Iv=50)
+    ic_low = initial_condition_scaled(Sh=600, Eh=20, Ih=3, Rh=0, Sv=2400, Ev=30, Iv=5)
+    ic_high = initial_condition_scaled(
+        Sh=500, Eh=10, Ih=30, Rh=0, Sv=4000, Ev=100, Iv=50
+    )
     report_endemic_equilibrium("Low", LOW, ic_low)
     report_endemic_equilibrium("High", HIGH, ic_high)
 
@@ -414,11 +480,21 @@ def main():
     print("=" * 72)
     print("STEP 4 — Plots")
     print("=" * 72)
-    sol_low  = integrate(LOW,  ic_low,  t_end_days=15_000, n_points=4000)
+    sol_low = integrate(LOW, ic_low, t_end_days=15_000, n_points=4000)
     sol_high = integrate(HIGH, ic_high, t_end_days=15_000, n_points=4000)
-    plot_trajectory("Low",  to_original_counts(sol_low),  "fig2_low_transmission.png",  t_max_days=15_000)
-    plot_trajectory("High", to_original_counts(sol_high), "fig3_high_transmission.png", t_max_days=15_000)
-    plot_sensitivity_bars(LOW, HIGH, "table4_sensitivity_bars.png")
+    plot_trajectory(
+        "Low",
+        to_original_counts(sol_low),
+        "pics/fig2_low_transmission.png",
+        t_max_days=15_000,
+    )
+    plot_trajectory(
+        "High",
+        to_original_counts(sol_high),
+        "pics/fig3_high_transmission.png",
+        t_max_days=15_000,
+    )
+    plot_sensitivity_bars(LOW, HIGH, "pics/table4_sensitivity_bars.png")
     print()
     print("Done.")
 
