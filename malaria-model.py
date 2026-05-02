@@ -403,8 +403,7 @@ def plot_trajectory(label, sol_dict, fname, t_max_days):
     for ax in axes[5:7]:
         ax.set_xlabel("time (days)")
     fig.suptitle(
-        f"Malaria model trajectory — {label} transmission "
-        f"(reproduction of Fig. {2 if label == 'Low' else 3})",
+        f"Malaria model trajectory: {label} transmissions",
         fontsize=12,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
